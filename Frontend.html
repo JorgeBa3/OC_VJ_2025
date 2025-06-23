@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chat con Arduino</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 600px;
+            margin: 50px auto;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        .chat-container {
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+        h1 {
+            text-align: center;
+            color: #333;
+            margin-bottom: 30px;
+        }
+        .chat-box {
+            border: 2px solid #eee;
+            border-radius: 10px;
+            padding: 20px;
+            height: 300px;
+            overflow-y: auto;
+            background: #f9f9f9;
+            margin-bottom: 20px;
+            font-family: monospace;
+        }
+        .mensaje {
+            margin: 10px 0;
+            padding: 10px;
+            border-radius: 8px;
+        }
+        .enviado {
+            background: #007bff;
+            color: white;
+            text-align: right;
+        }
+        .recibido {
+            background: #28a745;
+            color: white;
+        }
+        .input-group {
+            display: flex;
+            gap: 10px;
+        }
+        input[type="text"] {
+            flex: 1;
+            padding: 15px;
+            border: 2px solid #ddd;
+            border-radius: 25px;
+            font-size: 16px;
+            outline: none;
+        }
+        input[type="text"]:focus {
+            border-color: #007bff;
+        }
+        button {
+            padding: 15px 30px;
+            background: #007bff;
+            color: white;
+            border: none;
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: bold;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        .status {
+            text-align: center;
+            margin: 10px 0;
+            font-weight: bold;
+        }
+        .error { color: #dc3545; }
+        .success { color: #28a745; }
+    </style>
+</head>
+<body>
+    <div class="chat-container">
+        <h1>💬 Chat con Arduino</h1>
+        
+        <div id="chatBox" class="chat-box">
+            <div class="mensaje recibido">Arduino: ¡Listo para recibir mensajes!</div>
+        </div>
+        
+        <div class="input-group">
+            <input type="text" id="mensaje" placeholder="Escribe cualquier mensaje..." />
+            <button onclick="enviarMensaje()">Enviar</button>
+        </div>
+        
+        <div id="status" class="status"></div>
+    </div>
+
+    <script>
+        const chatBox = document.getElementById('chatBox');
+        const inputMensaje = document.getElementById('mensaje');
+        const status = document.getElementById('status');
+
+        function agregarMensaje(texto, tipo) {
+            const div = document.createElement('div');
+            div.className = `mensaje ${tipo}`;
+            div.textContent = texto;
+            chatBox.appendChild(div);
+            chatBox.scrollTop = chatBox.scrollHeight;
+        }
+
+        function mostrarStatus(texto, tipo) {
+            status.innerHTML = `<span class="${tipo}">${texto}</span>`;
+            setTimeout(() => status.innerHTML = '', 3000);
+        }
+
+        async function enviarMensaje() {
+            // \"s\" QUITAR LAS \"
+            if (inputMensaje.value.trim() === '') {
+                mostrarStatus('¡Escribe algo primero!', 'error');
+                return;
+            }
+            // Obtener el mensaje del input
+            const mensaje = inputMensaje.value.trim();
+            console.log(`Enviando command: ${mensaje}`);
+            
+            if (!mensaje) {
+                mostrarStatus('¡Escribe algo primero!', 'error');
+                return;
+            }
+
+            // Mostrar mensaje enviado
+            agregarMensaje(`Tú: ${mensaje}`, 'enviado');
+            inputMensaje.value = '';
+            
+            mostrarStatus('Enviando...', 'success');
+                
+            try {
+                const response = await fetch('http://localhost:3000/api/enviar', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ command: mensaje })
+                });
+
+                const data = await response.json();
+
+                if (data.success === true) {
+                    // Mostrar respuesta del Arduino
+                    agregarMensaje(`Arduino: ${data.respuesta}`, 'recibido');
+                    mostrarStatus('¡Mensaje enviado!', 'success');
+                } else {
+                    mostrarStatus(`Error: ${data.error}`, 'error');
+                }
+            } catch (error) {
+                mostrarStatus('Error de conexión', 'error');
+                console.error(error);
+            }
+        }
+
+        // Enviar con Enter
+        inputMensaje.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                enviarMensaje();
+            }
+        });
+
+        // Focus automático en el input
+        inputMensaje.focus();
+    </script>
+</body>
+</html>
